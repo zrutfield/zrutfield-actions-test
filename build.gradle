@@ -1,0 +1,90 @@
+plugins {
+    // Provide convenience executables for trying out the examples.
+    id 'application'
+    // ASSUMES GRADLE 2.12 OR HIGHER. Use plugin version 0.7.5 with earlier gradle versions
+    id 'com.google.protobuf' version '0.8.8'
+    // Generate IntelliJ IDEA's .idea & .iml project files
+    id 'idea'
+    id 'java'
+}
+
+
+group 'com.zrutfield.services'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+mainClassName = "com.zrutfield.services.beer.Application"
+
+def grpcVersion = '1.27.1' // CURRENT_GRPC_VERSION
+def protobufVersion = '3.11.0'
+def protocVersion = protobufVersion
+
+dependencies {
+
+    compile group: 'com.google.inject', name: 'guice', version: '4.1.0'
+    compile "com.google.api.grpc:proto-google-common-protos:1.13.0-pre2"
+    compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.0'
+
+    compileOnly "javax.annotation:javax.annotation-api:1.2"
+
+    implementation "com.google.protobuf:protobuf-java-util:${protobufVersion}"
+    implementation "io.grpc:grpc-protobuf:${grpcVersion}"
+    implementation "io.grpc:grpc-stub:${grpcVersion}"
+
+    runtimeOnly "io.grpc:grpc-netty-shaded:${grpcVersion}"
+
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+
+    testImplementation "io.grpc:grpc-testing:${grpcVersion}"
+    testImplementation "junit:junit:4.12"
+    testImplementation "org.mockito:mockito-core:2.28.2"
+}
+
+protobuf {
+    protoc { artifact = "com.google.protobuf:protoc:${protocVersion}" }
+    //noinspection GroovyAssignabilityCheck
+    plugins {
+        grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
+    }
+    generateProtoTasks {
+        all()*.plugins { grpc {} }
+    }
+}
+
+// Inform IDEs like IntelliJ IDEA, Eclipse or NetBeans about the generated code.
+sourceSets {
+    main {
+        java {
+            srcDirs 'build/generated/source/proto/main/grpc'
+            srcDirs 'build/generated/source/proto/main/java'
+        }
+    }
+}
+
+startScripts.enabled = false
+
+task startBeerServer(type: CreateStartScripts) {
+    mainClassName = 'com.zrutfield.services.beer.Application'
+    applicationName = 'beer-grpc-service'
+    outputDir = new File(project.buildDir, 'tmp')
+    classpath = startScripts.classpath
+}
+
+task runBeerClient(type: CreateStartScripts) {
+    mainClassName = 'com.zrutfield.services.beer.client.BeerServiceClient'
+    applicationName = 'beer-grpc-client'
+    outputDir = new File(project.buildDir, 'tmp')
+    classpath = startScripts.classpath
+}
+
+applicationDistribution.into('bin') {
+    from(startBeerServer)
+    from(runBeerClient)
+    fileMode = 0755
+}
+
